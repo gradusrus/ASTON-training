@@ -1,6 +1,6 @@
 package lesson4;
 
-class Animal {
+abstract class Animal {
     protected String name;
     static int animalCount = 0;
 
@@ -9,13 +9,9 @@ class Animal {
         animalCount++;
     }
 
-    void run(int distance) {
-        System.out.println(name + " пробежал " + distance + " м.");
-    }
+    abstract void run(int distance);
 
-    void swim(int distance) {
-        System.out.println(name + " проплыл " + distance + " м.");
-    }
+    abstract void swim(int distance);
 
     static void printCount() {
         System.out.println("Всего животных: " + animalCount);
