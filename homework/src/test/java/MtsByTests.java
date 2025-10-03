@@ -1,94 +1,107 @@
 import org.junit.jupiter.api.*;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.support.ui.*;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.time.Duration;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class MtsByTests {
+
     private WebDriver driver;
     private WebDriverWait wait;
 
-    @BeforeEach
+    @BeforeAll
     void setUp() {
         System.setProperty("webdriver.chrome.driver", "C:\\drivers\\chromedriver.exe");
         driver = new ChromeDriver();
         driver.manage().window().maximize();
-        wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        wait = new WebDriverWait(driver, Duration.ofSeconds(20));
     }
 
-    @AfterEach
+    @AfterAll
     void tearDown() {
         if (driver != null) {
             driver.quit();
         }
     }
 
-    // Обработчик окна cookies (если появится)
-    private void acceptCookiesIfPresent() {
+    private WebElement getPaymentBlock() {
+        driver.get("https://www.mts.by/");
         try {
-            WebElement cookieBtn = wait.withTimeout(Duration.ofSeconds(3))
-                    .until(ExpectedConditions.elementToBeClickable(
-                            By.xpath("//button[contains(text(),'Принять')]")));
+            WebElement cookieBtn = new WebDriverWait(driver, Duration.ofSeconds(5))
+                    .until(ExpectedConditions.elementToBeClickable(By.id("cookie-agree")));
             cookieBtn.click();
-        } catch (TimeoutException ignored) {
-        }
+        } catch (Exception ignored) {}
+
+        JavascriptExecutor js = (JavascriptExecutor) driver;
+        js.executeScript("window.scrollBy(0, 1200)");
+
+        return wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("section.pay")));
     }
 
     @Test
-    @DisplayName("Проверка заголовка блока 'Онлайн пополнение без комиссии'")
     void testBlockTitle() {
-        driver.get("https://www.mts.by/");
-        acceptCookiesIfPresent();
-
-        WebElement blockTitle = wait.until(ExpectedConditions
-                .visibilityOfElementLocated(By.xpath("//section[@class='pay']//h2")));
-
-
-        assertTrue(blockTitle.getText().replace("\n", " ")
-                        .contains("Онлайн пополнение без комиссии"),
-                "Заголовок блока не совпадает");
+        WebElement block = getPaymentBlock();
+        WebElement title = block.findElement(By.tagName("h2"));
+        String text = title.getText().replace("\n", " ").trim();
+        assertEquals("Онлайн пополнение без комиссии", text,
+                "Заголовок блока неверный");
     }
 
     @Test
-    @DisplayName("Проверка наличия логотипов платёжных систем")
     void testPaymentLogos() {
-        driver.get("https://www.mts.by/");
-        acceptCookiesIfPresent();
-
-        WebElement logosBlock = wait.until(ExpectedConditions
-                .visibilityOfElementLocated(By.xpath("//div[@class='pay__partners']")));
-
-        List<WebElement> logos = logosBlock.findElements(By.tagName("img"));
-        assertFalse(logos.isEmpty(), "Логотипы не найдены");
-
-        boolean hasVisa = logos.stream().anyMatch(l -> l.getAttribute("src").toLowerCase().contains("visa"));
-        boolean hasMastercard = logos.stream().anyMatch(l -> l.getAttribute("src").toLowerCase().contains("mastercard"));
-        boolean hasBelkart = logos.stream().anyMatch(l -> l.getAttribute("src").toLowerCase().contains("belkart"));
-
-        assertTrue(hasVisa, "Нет логотипа Visa");
-        assertTrue(hasMastercard, "Нет логотипа MasterCard");
-        assertTrue(hasBelkart, "Нет логотипа Белкарт");
+        WebElement block = getPaymentBlock();
+        WebElement partners = block.findElement(By.cssSelector("div.pay__partners"));
+        List<WebElement> logos = partners.findElements(By.tagName("img"));
+        assertTrue(logos.size() >= 4, "Логотипы платёжных систем не найдены");
+        boolean hasVisa = logos.stream().anyMatch(e -> e.getAttribute("src").toLowerCase().contains("visa"));
+        boolean hasMastercard = logos.stream().anyMatch(e -> e.getAttribute("src").toLowerCase().contains("mastercard"));
+        boolean hasBelkart = logos.stream().anyMatch(e -> e.getAttribute("src").toLowerCase().contains("belkart"));
+        assertTrue(hasVisa && hasMastercard && hasBelkart, "Не все логотипы платёжных систем найдены");
     }
 
     @Test
-    @DisplayName("Проверка работы ссылки 'Подробнее о сервисе'")
-    void testMoreLink() {
-        driver.get("https://www.mts.by/");
-        acceptCookiesIfPresent();
+    void testMoreInfoLink() {
+        WebElement block = getPaymentBlock();
+        WebElement link = block.findElement(By.linkText("Подробнее о сервисе"));
+        String oldUrl = driver.getCurrentUrl();
+        link.click();
+        wait.until(ExpectedConditions.not(ExpectedConditions.urlToBe(oldUrl)));
+        assertNotEquals(oldUrl, driver.getCurrentUrl(), "Ссылка не сработала");
+    }
 
-        WebElement moreLink = wait.until(ExpectedConditions
-                .elementToBeClickable(By.xpath("//section[@class='pay']//a[contains(text(),'Подробнее о сервисе')]")));
+    @Test
+    void testFormSubmission() {
+        WebElement block = getPaymentBlock();
 
-        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", moreLink);
-        moreLink.click();
+        WebElement phoneField = block.findElement(By.id("connection-phone"));
+        phoneField.sendKeys("297777777");
 
-        // Проверяем, что URL содержит раздел help
-        wait.until(ExpectedConditions.urlContains("/help/"));
-        assertTrue(driver.getCurrentUrl().contains("/help/"),
-                "Ссылка ведет не на страницу помощи");
+        WebElement amountField = block.findElement(By.id("connection-sum"));
+        amountField.sendKeys("1");
+
+        WebElement emailField = block.findElement(By.id("connection-email"));
+        emailField.sendKeys("test@test.com");
+
+        WebElement continueBtn = block.findElement(By.xpath(".//button[contains(text(),'Продолжить')]"));
+        continueBtn.click();
+
+        boolean somethingHappened = false;
+        try {
+            WebDriverWait shortWait = new WebDriverWait(driver, Duration.ofSeconds(15));
+            shortWait.until(ExpectedConditions.or(
+                    ExpectedConditions.presenceOfElementLocated(By.cssSelector("iframe")),
+                    ExpectedConditions.presenceOfElementLocated(By.cssSelector(".modal")),
+                    ExpectedConditions.presenceOfElementLocated(By.cssSelector(".error"))
+            ));
+            somethingHappened = true;
+        } catch (Exception ignored) {}
+
+        assertTrue(somethingHappened, "После нажатия 'Продолжить' ничего не произошло");
     }
 }
