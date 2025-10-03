@@ -18,20 +18,16 @@ public class PaymentPage {
         this.driver = driver;
         this.wait = new WebDriverWait(driver, Duration.ofSeconds(20));
     }
-
-    // ==== Локаторы ====
     private By blockTitle = By.xpath("//section[@class='pay']//h2");
     private By paymentLogos = By.cssSelector("div.pay__partners img");
     private By moreInfoLink = By.xpath("//a[contains(text(),'Подробнее о сервисе')]");
     private By continueButton = By.xpath("//button[contains(text(),'Продолжить')]");
 
-    // поля формы
     private By serviceTypeDropdown = By.xpath("//select[@id='pay-select']");
     private By phoneInput = By.xpath("//input[@placeholder='Номер телефона']");
     private By sumInput = By.xpath("//input[@placeholder='Сумма']");
     private By emailInput = By.xpath("//input[@placeholder='E-mail для отправки чека']");
 
-    // модальное окно оплаты
     private By modalWindow = By.cssSelector("div.payment-page__container");
     private By modalAmountText = By.xpath("//div[contains(text(),'BYN')]");
     private By modalPhoneText = By.xpath("//div[contains(text(),'Номер')]");
@@ -41,7 +37,6 @@ public class PaymentPage {
     private By cardNameInput = By.xpath("//input[@placeholder='Имя и фамилия на карте']");
     private By modalLogos = By.cssSelector("app-card-page img");
 
-    // ==== Методы ====
 
     public String getBlockTitle() {
         return wait.until(ExpectedConditions.visibilityOfElementLocated(blockTitle)).getText();
