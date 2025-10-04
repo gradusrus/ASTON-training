@@ -3,6 +3,7 @@ package tests;
 import base.BaseTest;
 import org.junit.jupiter.api.*;
 import pages.MainPage;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public class MtsPaymentTests extends BaseTest {
